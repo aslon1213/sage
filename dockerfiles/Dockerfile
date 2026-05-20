@@ -7,6 +7,7 @@ ENV PYTHONUNBUFFERED=1
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_TOOL_BIN_DIR=/usr/local/bin
+ENV UV_TOOL_DIR=/opt/uv-tools
 
 WORKDIR /workspace
 
@@ -30,16 +31,12 @@ RUN groupadd --system --gid 999 sage \
 # Source layer
 COPY . .
 
-RUN chown -R sage:sage /workspace
-USER sage
-ENV PATH="/home/sage/.local/bin:$PATH"
-
 # Install the CLI globally so `sage` is on PATH for any user.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv tool install --no-cache .
 
 RUN chown -R sage:sage /workspace
-
-ENV PATH="/usr/local/bin:$PATH"
+USER sage
+ENV PATH="/usr/local/bin:/home/sage/.local/bin:$PATH"
 
 ENTRYPOINT ["sage"]
