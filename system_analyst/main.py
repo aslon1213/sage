@@ -1,5 +1,9 @@
 import asyncio
 import json
+import logging
+import os
+import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -13,6 +17,23 @@ from rich.rule import Rule
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
+
+
+logger = logging.getLogger("system_analyst")
+
+
+def _configure_logging() -> None:
+    if logger.handlers:
+        return
+    level_name = os.environ.get("SAGE_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    logger.propagate = False
 
 
 AGENT_PROMPT = """You are documenting a service/web API. Produce documentation that will be shared across multiple teams: mobile/client developers, business analysts, and system analysts. Write it so each audience can find what they need without reading code.
@@ -272,6 +293,7 @@ class Runner:
                 self.error = str(exc)
                 self.state = "error"
                 self.current_action = "failed"
+                logger.exception("agent run failed: %s", exc)
                 self._event("✖", "error", str(exc), style="red", plain=f"error: {exc}")
                 live.update(self._status_panel())
             else:
@@ -376,6 +398,7 @@ class Runner:
                 )
             preview = _truncate(str(content), 200)
             if is_error:
+                logger.error("tool %s reported error: %s", name, _truncate(str(content), 500))
                 self._event("✗", f"{name} error", preview, style="red", plain=f"← {name} error {content}")
             else:
                 self._event("←", f"{name} ok", preview, style="green", plain=f"← {name} ok {content}")
@@ -405,14 +428,52 @@ class Runner:
             header.append(f"- error: {self.error}")
         header += ["", "## Transcript", ""]
         body = "\n".join(header + self.transcript) + "\n"
-        self.output_path.write_text(body, encoding="utf-8")
+
+        written_to = self._write_transcript(body)
+        if written_to is None:
+            self.console.print(
+                Panel(
+                    Text(
+                        "failed to write transcript — see stderr for details",
+                        style="bold red",
+                    ),
+                    border_style="red",
+                    padding=(0, 1),
+                )
+            )
+            return
+
         self.console.print(
             Panel(
-                Text(f"transcript → {self.output_path}", style="bold green"),
+                Text(f"transcript → {written_to}", style="bold green"),
                 border_style="green",
                 padding=(0, 1),
             )
         )
+
+    def _write_transcript(self, body: str) -> Path | None:
+        try:
+            self.output_path.write_text(body, encoding="utf-8")
+            return self.output_path
+        except (PermissionError, OSError) as exc:
+            logger.error(
+                "could not write transcript to %s: %s", self.output_path, exc
+            )
+
+        # Fallback: try a tempfile so the run output is not lost (e.g. when the
+        # working directory is a bind-mount the container user can't write to).
+        try:
+            fd, tmp_path = tempfile.mkstemp(
+                prefix="system_analyst_run_", suffix=".log"
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(body)
+            fallback = Path(tmp_path)
+            logger.warning("transcript written to fallback path %s", fallback)
+            return fallback
+        except OSError as exc:
+            logger.exception("fallback transcript write failed: %s", exc)
+            return None
 
 
 @click.command(
@@ -444,6 +505,7 @@ class Runner:
 )
 @click.version_option(package_name="system-analyst", prog_name="sage")
 def main(path: Path, output: Path, output_format: str) -> None:
+    _configure_logging()
     project_root = Path(__file__).resolve().parent.parent
 
     console = Console()

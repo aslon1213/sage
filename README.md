@@ -40,9 +40,11 @@ pip install "https://github.com/aslon1213/sage/releases/download/v0.1.0/system_a
 The release workflow publishes the image to GitHub Container Registry:
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work \
-  ghcr.io/aslon1213/sage/sage:latest \
-  --path . --format both
+docker run --rm --user "$(id -u):$(id -g)" \
+    -v "$PWD:/work" -w /work \
+    -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+    ghcr.io/aslon1213/sage/sage:0.1.5 \
+    --path . --format both
 ```
 
 The image's entrypoint is `sage`, so any flags are passed straight through.
