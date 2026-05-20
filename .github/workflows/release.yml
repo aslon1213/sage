@@ -127,11 +127,26 @@ jobs:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            Automated release for `sage` ${{ github.ref_name }}.
+            ## sage ${{ github.ref_name }}
 
-            **Artifacts**
-            - Wheel + sdist: attached below.
-            - Docker image: `ghcr.io/${{ github.repository }}/sage:${{ needs.build-wheel.outputs.version }}` (also tagged `latest`).
+            ### Artifacts
+            - **Python wheel + sdist** — attached below.
+            - **Docker image** — `ghcr.io/${{ github.repository }}/sage:${{ needs.build-wheel.outputs.version }}`
+              (also tagged `latest`).
+              See the [package page](https://github.com/${{ github.repository }}/pkgs/container/sage%2Fsage).
+
+            ### Install
+            From the wheel attached below:
+
+            ```bash
+            pip install "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/system_analyst-${{ needs.build-wheel.outputs.version }}-py3-none-any.whl"
+            ```
+
+            Or pull the Docker image:
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}/sage:${{ needs.build-wheel.outputs.version }}
+            ```
           files: |
             dist/*.whl
             dist/*.tar.gz
