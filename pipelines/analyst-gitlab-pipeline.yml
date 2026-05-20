@@ -1,0 +1,41 @@
+stages:
+  - prepare
+  - update_documentation
+  - build_documentation
+
+
+update_documentation:
+  image: harbor.smartbank.uz/container/analyst@latest
+  stage: update_documentation
+
+  dependencies:
+    - prepare
+
+  script:
+    - python -m analyst_agent --path . --output both
+
+build_documentation:
+  image: harbor.smartbank.uz/container/analyst@latest
+  stage: build_documentation
+  dependencies:
+    - prepare
+  script:
+    - echo "Building documentation"
+
+
+create_merge_request:
+  image: harbor.smartbank.uz/container/analyst@latest
+  stage: create_merge_request
+  script:
+    - export BRANCH_NAME="docs-update-$CI_PIPELINE_ID"
+    - git checkout -b $BRANCH_NAME
+    - git add .
+    - git commit -m "Automated documentation update"
+    - git push https://oauth2:${GITLAB_TOKEN}@gitlab.example.com/group/project.git HEAD:$BRANCH_NAME
+    - |
+      curl --request POST \
+        --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+        --data "source_branch=$BRANCH_NAME" \
+        --data "target_branch=main" \
+        --data "title=Automated documentation update" \
+        "https://gitlab.example.com/api/v4/projects/$CI_PROJECT_ID/merge_requests"

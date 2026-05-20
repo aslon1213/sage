@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "system-analyst"
+version = "0.1.0"
+description = "Sage — agentic CLI that documents a service/web API into Markdown and/or DOCX."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk",
+    "click>=8.1",
+    "rich",
+]
+
+[project.scripts]
+sage = "system_analyst.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["system_analyst"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "system_analyst/**",
+    "README.md",
+    "pyproject.toml",
+]
