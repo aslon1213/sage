@@ -30,13 +30,15 @@ RUN groupadd --system --gid 999 sage \
 # Source layer
 COPY . .
 
+RUN chown -R sage:sage /workspace
+USER sage
+ENV PATH="/home/sage/.local/bin:$PATH"
+
 # Install the CLI globally so `sage` is on PATH for any user.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv tool install --system --no-cache .
+    uv tool install --no-cache .
 
 RUN chown -R sage:sage /workspace
-
-USER sage
 
 ENV PATH="/usr/local/bin:$PATH"
 
