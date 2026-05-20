@@ -33,7 +33,8 @@ COPY . .
 
 # Install the CLI globally so `sage` is on PATH for any user.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv tool install --no-cache .
+    uv tool install --no-cache . \
+    && chmod -R a+rX /opt/uv-tools
 
 RUN chown -R sage:sage /workspace
 USER sage
